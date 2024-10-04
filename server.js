@@ -6,13 +6,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+require("dotenv").config();
+const MONGO_URI = process.env.MONGO_URI;
+
 // Conectar ao MongoDB
 mongoose
   .connect(
-    "mongodb+srv://jgcleite:JGLC1710@cluster0.xiqqp.mongodb.net/?authSource=admin&retryWrites=true&w=majority&appName=Cluster0",
+    "mongodb+srv://jgcleite:JGLC1710@cluster0.xiqqp.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      useNewUrlParser: true, // Adiciona o novo parser de URL
+      useUnifiedTopology: true, // Usa o novo motor de monitoramento de servidores
     }
   )
   .then(() => console.log("Conectado ao MongoDB Atlas"))
@@ -22,7 +25,7 @@ mongoose
 const Guest = mongoose.model("Guest", {
   name: String,
   rsvp: String,
-  drink: [String],
+  drink: [String], // Vamos garantir que "drink" seja um array para suportar múltiplas seleções
   inviteId: String,
 });
 
@@ -41,21 +44,26 @@ app.get("/invite/:inviteId", async (req, res) => {
 });
 
 // Rota para salvar as bebidas selecionadas por um convidado
-app.post("/invite/:inviteId/rsvp", async (req, res) => {
+app.post("/invite/:inviteId/drinks", async (req, res) => {
   try {
     const { inviteId } = req.params;
-    const { rsvp, drink } = req.body;
+    const { drink } = req.body;
 
+    if (!Array.isArray(drink)) {
+      return res.status(400).send("Drinks devem ser enviados como um array.");
+    }
+
+    // Encontra o convidado e atualiza suas bebidas
     const guest = await Guest.findOneAndUpdate(
       { inviteId },
-      { rsvp, drink }, // Atualiza RSVP e bebidas
+      { drink }, // Atualiza apenas as bebidas
       { new: true, upsert: true } // Atualiza ou cria se não existir
     );
 
     res.json(guest);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao salvar os dados de RSVP e bebidas");
+    res.status(500).send("Erro ao salvar os dados de bebidas");
   }
 });
 
